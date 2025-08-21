@@ -94,6 +94,75 @@
 					</div>
 				</div>
 			</section>
+
+			<section class="contact-form-section">
+				<h2 class="section-title">Send a Message</h2>
+
+				<form
+					name="contact"
+					method="POST"
+					data-netlify="true"
+					data-netlify-honeypot="bot-field"
+					class="contact-form"
+				>
+					<!-- Hidden field for Netlify -->
+					<input type="hidden" name="form-name" value="contact" />
+
+					<!-- Honeypot field for spam protection -->
+					<div style="display: none;">
+						<label>Don't fill this out if you're human: <input name="bot-field" /></label>
+					</div>
+
+					<div class="form-group">
+						<label for="name" class="form-label">Name *</label>
+						<input
+							type="text"
+							id="name"
+							name="name"
+							required
+							class="form-input"
+							placeholder="Your full name"
+						/>
+					</div>
+
+					<div class="form-group">
+						<label for="email" class="form-label">Email *</label>
+						<input
+							type="email"
+							id="email"
+							name="email"
+							required
+							class="form-input"
+							placeholder="your.email@example.com"
+						/>
+					</div>
+
+					<div class="form-group">
+						<label for="subject" class="form-label">Subject</label>
+						<input
+							type="text"
+							id="subject"
+							name="subject"
+							class="form-input"
+							placeholder="Brief subject line"
+						/>
+					</div>
+
+					<div class="form-group">
+						<label for="message" class="form-label">Message *</label>
+						<textarea
+							id="message"
+							name="message"
+							required
+							rows="6"
+							class="form-textarea"
+							placeholder="Please describe your inquiry or how I can help you..."
+						></textarea>
+					</div>
+
+					<button type="submit" class="submit-button"> Send Message </button>
+				</form>
+			</section>
 		</main>
 
 		<footer class="contact-footer">
@@ -134,12 +203,17 @@
 		gap: 3rem;
 		max-width: 75rem;
 		margin: 0 auto;
-		border: 1px solid red;
 	}
 
 	@media (min-width: 768px) {
 		.contact-content {
 			grid-template-columns: 1fr 1fr;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.contact-content {
+			grid-template-columns: 1fr 1fr 1fr;
 		}
 	}
 
@@ -219,6 +293,84 @@
 		margin: 0;
 	}
 
+	/* Contact Form Styles */
+	.contact-form-section {
+		grid-column: 1 / -1;
+		margin-top: 2rem;
+	}
+
+	.contact-form {
+		max-width: 40rem;
+		margin: 0 auto;
+	}
+
+	.form-group {
+		margin-bottom: 1.5rem;
+	}
+
+	.form-label {
+		display: block;
+		font-weight: 500;
+		color: #111827;
+		margin-bottom: 0.5rem;
+		font-size: 0.875rem;
+	}
+
+	.form-input,
+	.form-textarea {
+		width: 100%;
+		padding: 0.75rem;
+		border: 1px solid #d1d5db;
+		border-radius: 0.375rem;
+		font-size: 1rem;
+		transition:
+			border-color 0.2s ease-in-out,
+			box-shadow 0.2s ease-in-out;
+		background-color: white;
+	}
+
+	.form-input:focus,
+	.form-textarea:focus {
+		outline: none;
+		border-color: #fe795d;
+		box-shadow: 0 0 0 3px rgba(254, 121, 93, 0.1);
+	}
+
+	.form-textarea {
+		resize: vertical;
+		min-height: 120px;
+	}
+
+	.submit-button {
+		background-color: #fe795d;
+		color: white;
+		font-weight: 500;
+		padding: 0.75rem 2rem;
+		border: none;
+		border-radius: 0.375rem;
+		cursor: pointer;
+		transition:
+			background-color 0.2s ease-in-out,
+			transform 0.1s ease-in-out;
+		font-size: 1rem;
+		width: 100%;
+	}
+
+	.submit-button:hover {
+		background-color: #ef562f;
+		transform: translateY(-1px);
+	}
+
+	.submit-button:active {
+		transform: translateY(0);
+	}
+
+	@media (min-width: 640px) {
+		.submit-button {
+			width: auto;
+		}
+	}
+
 	/* Dark mode styles */
 	@media (prefers-color-scheme: dark) {
 		.contact-title {
@@ -259,6 +411,28 @@
 
 		.footer-text {
 			color: #d1d5db;
+		}
+
+		.form-label {
+			color: white;
+		}
+
+		.form-input,
+		.form-textarea {
+			background-color: #374151;
+			border-color: #4b5563;
+			color: white;
+		}
+
+		.form-input:focus,
+		.form-textarea:focus {
+			border-color: #fe795d;
+			box-shadow: 0 0 0 3px rgba(254, 121, 93, 0.1);
+		}
+
+		.form-input::placeholder,
+		.form-textarea::placeholder {
+			color: #9ca3af;
 		}
 	}
 </style>
