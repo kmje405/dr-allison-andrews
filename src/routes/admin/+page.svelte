@@ -558,15 +558,16 @@
 			class="modal-overlay"
 			onclick={closeSubmissionModal}
 			onkeydown={(e) => e.key === 'Escape' && closeSubmissionModal()}
-			role="dialog"
-			aria-modal="true"
-			aria-labelledby="modal-title"
+			role="presentation"
 		>
 			<div
 				class="modal-content"
 				onclick={(e) => e.stopPropagation()}
 				onkeydown={(e) => e.stopPropagation()}
-				role="document"
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="modal-title"
+				tabindex="-1"
 			>
 				<div class="modal-header">
 					<h3 class="modal-title">Contact Submission</h3>
