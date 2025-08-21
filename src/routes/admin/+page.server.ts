@@ -1,10 +1,11 @@
-import { getPostsWithTags } from '$lib/utils/blog-db.js';
+import { getAllPostsWithTagsForAdmin } from '$lib/utils/blog-db.js';
+import { getAllContactSubmissions } from '$lib/utils/contact-db.js';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
 	try {
 		// Get all posts (including unpublished ones for admin)
-		const allPosts = await getPostsWithTags();
+		const allPosts = await getAllPostsWithTagsForAdmin();
 
 		// Transform database posts to match admin interface format
 		const transformedPosts = allPosts.map((post) => ({
@@ -20,13 +21,18 @@ export const load: PageServerLoad = async () => {
 			excerpt: post.excerpt
 		}));
 
+		// Get all contact submissions
+		const contactSubmissions = await getAllContactSubmissions();
+
 		return {
-			posts: transformedPosts
+			posts: transformedPosts,
+			contactSubmissions
 		};
 	} catch (error) {
 		console.error('Error loading admin data:', error);
 		return {
-			posts: []
+			posts: [],
+			contactSubmissions: []
 		};
 	}
 };

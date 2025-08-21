@@ -40,6 +40,8 @@ export const contactSubmissions = pgTable('contact_submissions', {
 	email: text('email').notNull(),
 	subject: text('subject'),
 	message: text('message').notNull(),
+	archived: boolean('archived').notNull().default(false),
+	archivedAt: timestamp('archived_at'),
 	createdAt: timestamp('created_at').notNull().defaultNow()
 });
 

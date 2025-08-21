@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import { createContactSubmission } from '$lib/utils/contact-db.js';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -22,20 +23,20 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ success: false, message: 'Missing required fields' }, { status: 400 });
 		}
 
-		// In development, just log the form submission
-		console.log('Contact form submission:', {
+		// Save to database
+		const submission = await createContactSubmission({
 			name,
 			email,
-			subject,
-			message,
-			timestamp: new Date().toISOString()
+			subject: subject || undefined,
+			message
 		});
+
+		console.log('Contact form submission saved:', submission.id);
 
 		// Return success response
 		return json({
 			success: true,
-			message:
-				'Thank you for your message! This is a development environment, so the message was logged to the console.'
+			message: 'Thank you for your message! We will get back to you soon.'
 		});
 	} catch (error) {
 		console.error('Contact form error:', error);

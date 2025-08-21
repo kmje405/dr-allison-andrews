@@ -14,6 +14,43 @@
 		],
 		ogType: 'website' as const
 	};
+
+	let isSubmitting = $state(false);
+	let submitMessage = $state('');
+	let submitSuccess = $state(false);
+
+	async function handleSubmit(event: Event) {
+		event.preventDefault();
+		isSubmitting = true;
+		submitMessage = '';
+		submitSuccess = false;
+
+		const form = event.target as HTMLFormElement;
+		const formData = new FormData(form);
+
+		try {
+			const response = await fetch('/api/contact', {
+				method: 'POST',
+				body: formData
+			});
+
+			const result = await response.json();
+
+			if (result.success) {
+				submitSuccess = true;
+				submitMessage = result.message;
+				form.reset();
+			} else {
+				submitSuccess = false;
+				submitMessage = result.message || 'Failed to send message. Please try again.';
+			}
+		} catch (error) {
+			submitSuccess = false;
+			submitMessage = 'Failed to send message. Please try again.';
+		} finally {
+			isSubmitting = false;
+		}
+	}
 </script>
 
 <PageTemplate {seo}>
@@ -104,6 +141,7 @@
 					data-netlify="true"
 					data-netlify-honeypot="bot-field"
 					class="contact-form"
+					onsubmit={handleSubmit}
 				>
 					<!-- Hidden field for Netlify -->
 					<input type="hidden" name="form-name" value="contact" />
@@ -160,7 +198,15 @@
 						></textarea>
 					</div>
 
-					<button type="submit" class="submit-button"> Send Message </button>
+					{#if submitMessage}
+						<div class="submit-message" class:success={submitSuccess} class:error={!submitSuccess}>
+							{submitMessage}
+						</div>
+					{/if}
+
+					<button type="submit" class="submit-button" disabled={isSubmitting}>
+						{isSubmitting ? 'Sending...' : 'Send Message'}
+					</button>
 				</form>
 			</section>
 		</main>
@@ -365,6 +411,31 @@
 		transform: translateY(0);
 	}
 
+	.submit-button:disabled {
+		background-color: #9ca3af;
+		cursor: not-allowed;
+		transform: none;
+	}
+
+	.submit-message {
+		padding: 0.75rem;
+		border-radius: 0.375rem;
+		margin-bottom: 1rem;
+		font-weight: 500;
+	}
+
+	.submit-message.success {
+		background-color: #d1fae5;
+		color: #065f46;
+		border: 1px solid #a7f3d0;
+	}
+
+	.submit-message.error {
+		background-color: #fee2e2;
+		color: #991b1b;
+		border: 1px solid #fca5a5;
+	}
+
 	@media (min-width: 640px) {
 		.submit-button {
 			width: auto;
@@ -433,6 +504,18 @@
 		.form-input::placeholder,
 		.form-textarea::placeholder {
 			color: #9ca3af;
+		}
+
+		.submit-message.success {
+			background-color: #064e3b;
+			color: #a7f3d0;
+			border-color: #065f46;
+		}
+
+		.submit-message.error {
+			background-color: #7f1d1d;
+			color: #fca5a5;
+			border-color: #991b1b;
 		}
 	}
 </style>

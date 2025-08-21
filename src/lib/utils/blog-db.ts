@@ -137,6 +137,63 @@ export async function getPostsWithTags(): Promise<(BlogPost & { tags: string[] }
 	}
 }
 
+// Get all posts with tags for admin (includes unpublished posts)
+export async function getAllPostsWithTagsForAdmin(): Promise<(BlogPost & { tags: string[] })[]> {
+	try {
+		const posts = await db
+			.select({
+				id: blogPosts.id,
+				slug: blogPosts.slug,
+				title: blogPosts.title,
+				excerpt: blogPosts.excerpt,
+				content: blogPosts.content,
+				author: blogPosts.author,
+				readTime: blogPosts.readTime,
+				published: blogPosts.published,
+				featured: blogPosts.featured,
+				createdAt: blogPosts.createdAt,
+				updatedAt: blogPosts.updatedAt,
+				tagName: blogTags.name
+			})
+			.from(blogPosts)
+			.leftJoin(blogPostTags, eq(blogPosts.id, blogPostTags.postId))
+			.leftJoin(blogTags, eq(blogPostTags.tagId, blogTags.id))
+			.orderBy(desc(blogPosts.createdAt));
+
+		// Group posts and their tags
+		const postsMap = new Map<number, BlogPost & { tags: string[] }>();
+
+		for (const row of posts) {
+			if (!postsMap.has(row.id)) {
+				postsMap.set(row.id, {
+					id: row.id,
+					slug: row.slug,
+					title: row.title,
+					excerpt: row.excerpt,
+					content: row.content,
+					author: row.author,
+					readTime: row.readTime,
+					published: row.published,
+					featured: row.featured,
+					createdAt: row.createdAt,
+					updatedAt: row.updatedAt,
+					tags: []
+				});
+			}
+
+			const post = postsMap.get(row.id)!;
+			if (row.tagName && !post.tags.includes(row.tagName)) {
+				post.tags.push(row.tagName);
+			}
+		}
+
+		return Array.from(postsMap.values());
+	} catch (error) {
+		console.error('Error fetching all posts with tags for admin:', error);
+		return [];
+	}
+}
+
 // Get single post with tags by slug
 export async function getPostWithTagsBySlug(
 	slug: string

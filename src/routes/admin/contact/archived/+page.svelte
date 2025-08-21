@@ -15,6 +15,13 @@
 	let setupError = $state('');
 	let isLoading = $state(false);
 
+	// Modal state for viewing contact submissions
+	let showSubmissionModal = $state(false);
+	let selectedSubmission = $state<any>(null);
+
+	// Get archived submissions from server-loaded data
+	let archivedSubmissions = $state(data.archivedSubmissions);
+
 	onMount(async () => {
 		// Initialize auth state
 		clientAuth.init();
@@ -111,92 +118,21 @@
 		showLoginPrompt = true;
 	}
 
-	const seo = {
-		title: 'Admin Dashboard',
-		description: 'Blog administration dashboard for Dr. Allison Andrews',
-		keywords: ['admin', 'dashboard', 'blog management'],
-		ogType: 'website' as const
-	};
-
-	// Get blog posts and contact submissions from server-loaded data
-	let blogPosts = $state(data.posts);
-	let contactSubmissions = $state(data.contactSubmissions);
-
-	// Modal state for viewing contact submissions
-	let showSubmissionModal = $state(false);
-	let selectedSubmission = $state<any>(null);
-
-	async function togglePublished(postId: number) {
-		try {
-			const token = clientAuth.getToken();
-			const response = await fetch(`/api/admin/posts/${postId}/toggle-published`, {
-				method: 'POST',
-				headers: {
-					Authorization: `Bearer ${token}`,
-					'Content-Type': 'application/json'
-				}
-			});
-
-			if (response.ok) {
-				// Update the local state
-				const post = blogPosts.find((p) => p.id === postId);
-				if (post) {
-					post.published = !post.published;
-				}
-			} else if (response.status === 401) {
-				// Token expired or invalid, redirect to login
-				await clientAuth.logout();
-				showLoginPrompt = true;
-			} else {
-				console.error('Failed to toggle published status');
-			}
-		} catch (error) {
-			console.error('Error toggling published status:', error);
-		}
-	}
-
-	async function toggleFeatured(postId: number) {
-		try {
-			const token = clientAuth.getToken();
-			const response = await fetch(`/api/admin/posts/${postId}/toggle-featured`, {
-				method: 'POST',
-				headers: {
-					Authorization: `Bearer ${token}`,
-					'Content-Type': 'application/json'
-				}
-			});
-
-			if (response.ok) {
-				// Update the local state
-				const post = blogPosts.find((p) => p.id === postId);
-				if (post) {
-					post.featured = !post.featured;
-				}
-			} else if (response.status === 401) {
-				// Token expired or invalid, redirect to login
-				await clientAuth.logout();
-				showLoginPrompt = true;
-			} else {
-				console.error('Failed to toggle featured status');
-			}
-		} catch (error) {
-			console.error('Error toggling featured status:', error);
-		}
-	}
-
-	async function deletePost(postId: number, postTitle: string) {
-		// Double confirmation
-		const firstConfirm = confirm(`Are you sure you want to delete "${postTitle}"?`);
+	async function deleteSubmission(submissionId: number, submissionName: string) {
+		// Double confirmation for permanent deletion
+		const firstConfirm = confirm(
+			`Are you sure you want to permanently delete the submission from "${submissionName}"?`
+		);
 		if (!firstConfirm) return;
 
 		const secondConfirm = confirm(
-			`This action cannot be undone. Are you absolutely sure you want to permanently delete "${postTitle}"?`
+			`This action cannot be undone. Are you absolutely sure you want to permanently delete this submission?`
 		);
 		if (!secondConfirm) return;
 
 		try {
 			const token = clientAuth.getToken();
-			const response = await fetch(`/api/admin/posts/${postId}/delete`, {
+			const response = await fetch(`/api/admin/contact/${submissionId}/delete`, {
 				method: 'DELETE',
 				headers: {
 					Authorization: `Bearer ${token}`,
@@ -205,24 +141,20 @@
 			});
 
 			if (response.ok) {
-				// Remove the post from local state
-				blogPosts = blogPosts.filter((p) => p.id !== postId);
+				// Remove the submission from local state
+				archivedSubmissions = archivedSubmissions.filter((s) => s.id !== submissionId);
 			} else if (response.status === 401) {
 				// Token expired or invalid, redirect to login
 				await clientAuth.logout();
 				showLoginPrompt = true;
 			} else {
 				const result = await response.json();
-				alert(`Failed to delete post: ${result.message}`);
+				alert(`Failed to delete submission: ${result.message}`);
 			}
 		} catch (error) {
-			console.error('Error deleting post:', error);
-			alert('Failed to delete post. Please try again.');
+			console.error('Error deleting submission:', error);
+			alert('Failed to delete submission. Please try again.');
 		}
-	}
-
-	function editPost(postId: number) {
-		window.location.href = `/admin/posts/${postId}`;
 	}
 
 	function viewSubmission(submission: any) {
@@ -235,38 +167,12 @@
 		selectedSubmission = null;
 	}
 
-	async function archiveSubmission(submissionId: number, submissionName: string) {
-		const confirm = window.confirm(
-			`Are you sure you want to archive the submission from "${submissionName}"?`
-		);
-		if (!confirm) return;
-
-		try {
-			const token = clientAuth.getToken();
-			const response = await fetch(`/api/admin/contact/${submissionId}/archive`, {
-				method: 'POST',
-				headers: {
-					Authorization: `Bearer ${token}`,
-					'Content-Type': 'application/json'
-				}
-			});
-
-			if (response.ok) {
-				// Remove the submission from local state
-				contactSubmissions = contactSubmissions.filter((s) => s.id !== submissionId);
-			} else if (response.status === 401) {
-				// Token expired or invalid, redirect to login
-				await clientAuth.logout();
-				showLoginPrompt = true;
-			} else {
-				const result = await response.json();
-				alert(`Failed to archive submission: ${result.message}`);
-			}
-		} catch (error) {
-			console.error('Error archiving submission:', error);
-			alert('Failed to archive submission. Please try again.');
-		}
-	}
+	const seo = {
+		title: 'Archived Contact Submissions',
+		description: 'View archived contact form submissions',
+		keywords: ['admin', 'contact', 'archived', 'submissions'],
+		ogType: 'website' as const
+	};
 </script>
 
 {#if showAdminSetup}
@@ -391,111 +297,42 @@
 		{#snippet children()}
 			<div class="admin-header">
 				<div class="admin-title-section">
-					<h1 class="admin-title">Admin Dashboard</h1>
-					<p class="admin-subtitle">
-						Welcome back, {$currentUser?.name || $currentUser?.email}
-					</p>
+					<h1 class="admin-title">Archived Contact Submissions</h1>
+					<p class="admin-subtitle">View and manage archived contact form submissions</p>
 				</div>
 
 				<div class="admin-actions">
+					<a href="/admin" class="back-button">← Back to Dashboard</a>
 					<button class="logout-button" onclick={handleLogout}> Log Out </button>
 				</div>
 			</div>
 
 			<div class="admin-content">
-				<section class="blog-management">
-					<h2 class="section-title">Blog Posts</h2>
-
-					<div class="posts-table">
-						<div class="table-header">
-							<div class="header-cell">Title</div>
-							<div class="header-cell">Date</div>
-							<div class="header-cell">Status</div>
-							<div class="header-cell">Featured</div>
-							<div class="header-cell">Actions</div>
-						</div>
-
-						{#each blogPosts as post}
-							<div class="table-row">
-								<div class="cell post-title">
-									<a href="/blog/{post.slug}" class="post-link" target="_blank">
-										{post.title}
-									</a>
-								</div>
-								<div class="cell">{new Date(post.date).toLocaleDateString()}</div>
-								<div class="cell">
-									<span
-										class="status-badge"
-										class:published={post.published}
-										class:draft={!post.published}
-									>
-										{post.published ? 'Published' : 'Draft'}
-									</span>
-								</div>
-								<div class="cell">
-									<button
-										class="toggle-button"
-										class:active={post.featured}
-										onclick={() => toggleFeatured(post.id)}
-										title={post.featured ? 'Remove from featured' : 'Add to featured'}
-									>
-										{post.featured ? '★' : '☆'}
-									</button>
-								</div>
-								<div class="cell actions">
-									<button
-										class="action-button publish"
-										onclick={() => togglePublished(post.id)}
-										title={post.published ? 'Unpublish post' : 'Publish post'}
-									>
-										{post.published ? 'Unpublish' : 'Publish'}
-									</button>
-									<button
-										class="action-button edit"
-										onclick={() => editPost(post.id)}
-										title="Edit post"
-									>
-										Edit
-									</button>
-									<button
-										class="action-button delete"
-										onclick={() => deletePost(post.id, post.title)}
-										title="Delete post"
-									>
-										Delete
-									</button>
-								</div>
-							</div>
-						{/each}
-					</div>
-				</section>
-
-				<section class="contact-submissions">
-					<div class="section-header">
-						<h2 class="section-title">Contact Submissions</h2>
-						<a href="/admin/contact/archived" class="archived-link"> View Archived </a>
-					</div>
-
-					{#if contactSubmissions.length === 0}
-						<p class="no-submissions">No contact submissions yet.</p>
+				<section class="archived-submissions">
+					{#if archivedSubmissions.length === 0}
+						<p class="no-submissions">No archived submissions yet.</p>
 					{:else}
 						<div class="submissions-table">
 							<div class="table-header">
 								<div class="header-cell">Name</div>
 								<div class="header-cell">Email</div>
 								<div class="header-cell">Subject</div>
-								<div class="header-cell">Date</div>
+								<div class="header-cell">Archived Date</div>
 								<div class="header-cell">Actions</div>
 							</div>
 
-							{#each contactSubmissions as submission}
+							{#each archivedSubmissions as submission}
 								<div class="table-row">
 									<div class="cell">{submission.name}</div>
 									<div class="cell">
 										<a href="mailto:{submission.email}" class="email-link">{submission.email}</a>
 									</div>
 									<div class="cell">{submission.subject || 'No subject'}</div>
-									<div class="cell">{new Date(submission.createdAt).toLocaleDateString()}</div>
+									<div class="cell">
+										{submission.archivedAt
+											? new Date(submission.archivedAt).toLocaleDateString()
+											: 'Unknown'}
+									</div>
 									<div class="cell actions">
 										<button
 											class="action-button view"
@@ -505,11 +342,11 @@
 											View
 										</button>
 										<button
-											class="action-button archive"
-											onclick={() => archiveSubmission(submission.id, submission.name)}
-											title="Archive submission"
+											class="action-button delete"
+											onclick={() => deleteSubmission(submission.id, submission.name)}
+											title="Permanently delete submission"
 										>
-											Archive
+											Delete
 										</button>
 									</div>
 								</div>
@@ -517,59 +354,16 @@
 						</div>
 					{/if}
 				</section>
-
-				<section class="quick-actions">
-					<h2 class="section-title">Quick Actions</h2>
-
-					<div class="action-cards">
-						<div class="action-card">
-							<h3 class="card-title">New Blog Post</h3>
-							<p class="card-description">Create a new blog post</p>
-							<button
-								class="card-button"
-								onclick={() => (window.location.href = '/admin/posts/new')}>Create Post</button
-							>
-						</div>
-
-						<div class="action-card">
-							<h3 class="card-title">Site Analytics</h3>
-							<p class="card-description">View site performance</p>
-							<a href="https://app.netlify.com" target="_blank" class="card-button">
-								View Analytics
-							</a>
-						</div>
-
-						<div class="action-card">
-							<h3 class="card-title">Contact Messages</h3>
-							<p class="card-description">View contact form submissions</p>
-							<span class="card-button disabled">
-								{contactSubmissions.length} message{contactSubmissions.length !== 1 ? 's' : ''}
-							</span>
-						</div>
-					</div>
-				</section>
 			</div>
 		{/snippet}
 	</PageTemplate>
 
 	<!-- Contact Submission Modal -->
 	{#if showSubmissionModal && selectedSubmission}
-		<div
-			class="modal-overlay"
-			onclick={closeSubmissionModal}
-			onkeydown={(e) => e.key === 'Escape' && closeSubmissionModal()}
-			role="dialog"
-			aria-modal="true"
-			aria-labelledby="modal-title"
-		>
-			<div
-				class="modal-content"
-				onclick={(e) => e.stopPropagation()}
-				onkeydown={(e) => e.stopPropagation()}
-				role="document"
-			>
+		<div class="modal-overlay" onclick={closeSubmissionModal}>
+			<div class="modal-content" onclick={(e) => e.stopPropagation()}>
 				<div class="modal-header">
-					<h3 class="modal-title">Contact Submission</h3>
+					<h3 class="modal-title">Archived Contact Submission</h3>
 					<button class="modal-close" onclick={closeSubmissionModal}>×</button>
 				</div>
 
@@ -588,9 +382,18 @@
 						</div>
 
 						<div class="detail-row">
-							<span class="detail-label">Date:</span>
+							<span class="detail-label">Original Date:</span>
 							<span class="detail-value">
 								{new Date(selectedSubmission.createdAt).toLocaleString()}
+							</span>
+						</div>
+
+						<div class="detail-row">
+							<span class="detail-label">Archived Date:</span>
+							<span class="detail-value">
+								{selectedSubmission.archivedAt
+									? new Date(selectedSubmission.archivedAt).toLocaleString()
+									: 'Unknown'}
 							</span>
 						</div>
 
@@ -614,15 +417,6 @@
 					>
 						Reply via Email
 					</a>
-					<button
-						class="modal-button archive"
-						onclick={() => {
-							archiveSubmission(selectedSubmission.id, selectedSubmission.name);
-							closeSubmissionModal();
-						}}
-					>
-						Archive
-					</button>
 					<button class="modal-button secondary" onclick={closeSubmissionModal}>Close</button>
 				</div>
 			</div>
@@ -639,7 +433,7 @@
 {/if}
 
 <style>
-	/* Login Prompt Styles */
+	/* Reuse styles from main admin page */
 	.login-prompt {
 		display: flex;
 		align-items: center;
@@ -670,99 +464,17 @@
 		line-height: 1.6;
 	}
 
-	.login-form {
-		display: flex;
-		flex-direction: column;
-		gap: 1.5rem;
-		text-align: left;
-	}
-
-	.form-group {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.form-group label {
-		font-weight: 500;
-		color: #374151;
-		font-size: 0.875rem;
-	}
-
-	.form-group input {
-		padding: 0.75rem;
-		border: 1px solid #d1d5db;
-		border-radius: 0.375rem;
-		font-size: 1rem;
-		transition: border-color 0.2s ease;
-	}
-
-	.form-group input:focus {
-		outline: none;
-		border-color: #fe795d;
-		box-shadow: 0 0 0 3px rgba(254, 121, 93, 0.1);
-	}
-
-	.error-message {
-		background-color: #fef2f2;
-		color: #dc2626;
-		padding: 0.75rem;
-		border-radius: 0.375rem;
-		font-size: 0.875rem;
-		text-align: center;
-	}
-
-	.login-buttons {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-		align-items: center;
-	}
-
-	.login-button {
-		background-color: #fe795d;
-		color: white;
-		font-weight: 500;
-		padding: 0.75rem 2rem;
-		border: none;
-		border-radius: 0.5rem;
-		cursor: pointer;
-		transition: background-color 0.2s ease;
-		font-size: 1rem;
-		width: 100%;
-	}
-
-	.login-button:hover:not(:disabled) {
-		background-color: #ef562f;
-	}
-
-	.login-button:disabled {
-		background-color: #9ca3af;
-		cursor: not-allowed;
-	}
-
-	.back-link {
-		color: #6b7280;
-		text-decoration: none;
-		font-size: 0.875rem;
-	}
-
-	.back-link:hover {
-		color: #374151;
-	}
-
-	/* Admin Dashboard Styles */
 	.admin-header {
 		display: flex;
+		align-items: center;
 		justify-content: space-between;
-		align-items: flex-start;
-		margin-bottom: 3rem;
-		padding-bottom: 2rem;
+		margin-bottom: 2rem;
+		padding-bottom: 1rem;
 		border-bottom: 1px solid #e5e7eb;
 	}
 
 	.admin-title {
-		font-size: 2.5rem;
+		font-size: 2rem;
 		font-weight: bold;
 		color: #111827;
 		margin-bottom: 0.5rem;
@@ -770,305 +482,49 @@
 
 	.admin-subtitle {
 		color: #6b7280;
-		font-size: 1.125rem;
+		margin: 0;
 	}
 
-	.logout-button {
-		background-color: #6b7280;
-		color: white;
-		font-weight: 500;
-		padding: 0.5rem 1rem;
-		border: none;
-		border-radius: 0.375rem;
-		cursor: pointer;
-		transition: background-color 0.2s ease;
-	}
-
-	.logout-button:hover {
-		background-color: #4b5563;
-	}
-
-	.admin-content {
-		display: grid;
-		gap: 3rem;
-	}
-
-	.section-title {
-		font-size: 1.5rem;
-		font-weight: 600;
-		color: #111827;
-		margin-bottom: 1.5rem;
-	}
-
-	/* Posts Table */
-	.posts-table {
-		background: white;
-		border-radius: 0.5rem;
-		overflow: hidden;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-	}
-
-	.table-header {
-		display: grid;
-		grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr;
-		background-color: #f9fafb;
-		border-bottom: 1px solid #e5e7eb;
-	}
-
-	.header-cell {
-		padding: 1rem;
-		font-weight: 600;
-		color: #374151;
-		font-size: 0.875rem;
-	}
-
-	.table-row {
-		display: grid;
-		grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr;
-		border-bottom: 1px solid #f3f4f6;
-	}
-
-	.table-row:hover {
-		background-color: #f9fafb;
-	}
-
-	.cell {
-		padding: 1rem;
+	.admin-actions {
 		display: flex;
+		gap: 1rem;
 		align-items: center;
-		font-size: 0.875rem;
 	}
 
-	.post-link {
-		color: #fe795d;
-		text-decoration: none;
-		font-weight: 500;
-	}
-
-	.post-link:hover {
-		text-decoration: underline;
-	}
-
-	.status-badge {
-		padding: 0.25rem 0.75rem;
-		border-radius: 1rem;
-		font-size: 0.75rem;
-		font-weight: 500;
-	}
-
-	.status-badge.published {
-		background-color: #d1fae5;
-		color: #065f46;
-	}
-
-	.status-badge.draft {
-		background-color: #fef3c7;
-		color: #92400e;
-	}
-
-	.toggle-button {
-		background: none;
-		border: none;
-		font-size: 1.25rem;
-		cursor: pointer;
-		color: #d1d5db;
-		transition: color 0.2s ease;
-	}
-
-	.toggle-button.active {
-		color: #fbbf24;
-	}
-
-	.actions {
-		gap: 0.5rem;
-	}
-
-	.action-button {
+	.back-button {
 		background-color: #f3f4f6;
 		color: #374151;
-		border: none;
-		padding: 0.375rem 0.75rem;
-		border-radius: 0.25rem;
-		cursor: pointer;
-		font-size: 0.75rem;
+		text-decoration: none;
+		font-weight: 500;
+		padding: 0.5rem 1rem;
+		border-radius: 0.375rem;
 		transition: background-color 0.2s ease;
+		font-size: 0.875rem;
 	}
 
-	.action-button:hover {
+	.back-button:hover {
 		background-color: #e5e7eb;
 	}
 
-	.action-button.publish {
-		background-color: #d1fae5;
-		color: #065f46;
-	}
-
-	.action-button.publish:hover {
-		background-color: #a7f3d0;
-	}
-
-	.action-button.edit {
-		background-color: #dbeafe;
-		color: #1e40af;
-	}
-
-	.action-button.edit:hover {
-		background-color: #bfdbfe;
-	}
-
-	.action-button.delete {
-		background-color: #fee2e2;
-		color: #dc2626;
-	}
-
-	.action-button.delete:hover {
-		background-color: #fecaca;
-	}
-
-	/* Quick Actions */
-	.action-cards {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-		gap: 1.5rem;
-	}
-
-	.action-card {
-		background: white;
-		padding: 1.5rem;
-		border-radius: 0.5rem;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-	}
-
-	.card-title {
-		font-size: 1.125rem;
-		font-weight: 600;
-		color: #111827;
-		margin-bottom: 0.5rem;
-	}
-
-	.card-description {
-		color: #6b7280;
-		font-size: 0.875rem;
-		margin-bottom: 1rem;
-	}
-
-	.card-button {
-		background-color: #fe795d;
+	.logout-button {
+		background-color: #ef4444;
 		color: white;
-		text-decoration: none;
+		border: none;
 		font-weight: 500;
 		padding: 0.5rem 1rem;
-		border: none;
 		border-radius: 0.375rem;
 		cursor: pointer;
 		transition: background-color 0.2s ease;
-		display: inline-block;
 		font-size: 0.875rem;
 	}
 
-	.card-button:hover {
-		background-color: #ef562f;
+	.logout-button:hover {
+		background-color: #dc2626;
 	}
 
-	.loading {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		min-height: 60vh;
-		color: #6b7280;
-	}
-
-	/* Responsive Design */
-	@media (max-width: 768px) {
-		.admin-header {
-			flex-direction: column;
-			gap: 1rem;
-		}
-
-		.table-header,
-		.table-row {
-			grid-template-columns: 1fr;
-			gap: 0.5rem;
-		}
-
-		.header-cell,
-		.cell {
-			padding: 0.75rem;
-		}
-
-		.posts-table {
-			overflow-x: auto;
-		}
-	}
-
-	/* Dark Mode */
-	@media (prefers-color-scheme: dark) {
-		.login-card {
-			background-color: #1f2937;
-		}
-
-		.login-title {
-			color: white;
-		}
-
-		.admin-title {
-			color: white;
-		}
-
-		.section-title {
-			color: white;
-		}
-
-		.posts-table {
-			background-color: #1f2937;
-		}
-
-		.table-header {
-			background-color: #374151;
-		}
-
-		.header-cell {
-			color: #d1d5db;
-		}
-
-		.table-row:hover {
-			background-color: #374151;
-		}
-
-		.cell {
-			color: #d1d5db;
-		}
-
-		.action-card {
-			background-color: #1f2937;
-		}
-
-		.card-title {
-			color: white;
-		}
-
-		.no-submissions {
-			background-color: #374151;
-			color: #d1d5db;
-		}
-
-		.submissions-table {
-			background: #1f2937;
-		}
-
-		.email-link {
-			color: #fbbf24;
-		}
-
-		.card-button.disabled {
-			background-color: #4b5563;
-			color: #9ca3af;
-		}
-	}
-
-	/* Contact Submissions Styles */
-	.contact-submissions {
-		margin-top: 3rem;
+	.admin-content {
+		max-width: 75rem;
+		margin: 0 auto;
 	}
 
 	.no-submissions {
@@ -1087,6 +543,43 @@
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 	}
 
+	.table-header {
+		display: grid;
+		grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+		background-color: #f9fafb;
+		border-bottom: 1px solid #e5e7eb;
+	}
+
+	.header-cell {
+		padding: 1rem;
+		font-weight: 600;
+		color: #374151;
+		font-size: 0.875rem;
+	}
+
+	.table-row {
+		display: grid;
+		grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+		border-bottom: 1px solid #f3f4f6;
+		transition: background-color 0.2s ease;
+	}
+
+	.table-row:hover {
+		background-color: #f9fafb;
+	}
+
+	.cell {
+		padding: 1rem;
+		color: #374151;
+		font-size: 0.875rem;
+		display: flex;
+		align-items: center;
+	}
+
+	.cell.actions {
+		gap: 0.5rem;
+	}
+
 	.email-link {
 		color: #fe795d;
 		text-decoration: none;
@@ -1094,6 +587,18 @@
 
 	.email-link:hover {
 		text-decoration: underline;
+	}
+
+	.action-button {
+		background-color: #6b7280;
+		color: white;
+		border: none;
+		font-weight: 500;
+		padding: 0.375rem 0.75rem;
+		border-radius: 0.25rem;
+		cursor: pointer;
+		transition: background-color 0.2s ease;
+		font-size: 0.75rem;
 	}
 
 	.action-button.view {
@@ -1104,11 +609,20 @@
 		background-color: #2563eb;
 	}
 
-	.card-button.disabled {
-		background-color: #e5e7eb;
+	.action-button.delete {
+		background-color: #ef4444;
+	}
+
+	.action-button.delete:hover {
+		background-color: #dc2626;
+	}
+
+	.loading {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 60vh;
 		color: #6b7280;
-		cursor: default;
-		pointer-events: none;
 	}
 
 	/* Modal Styles */
@@ -1192,7 +706,7 @@
 	.detail-label {
 		font-weight: 500;
 		color: #374151;
-		min-width: 80px;
+		min-width: 120px;
 		flex-shrink: 0;
 	}
 
@@ -1253,17 +767,53 @@
 		background-color: #e5e7eb;
 	}
 
-	.modal-button.archive {
-		background-color: #f59e0b;
-		color: white;
-	}
-
-	.modal-button.archive:hover {
-		background-color: #d97706;
-	}
-
-	/* Dark mode modal styles */
+	/* Dark mode styles */
 	@media (prefers-color-scheme: dark) {
+		.login-card {
+			background-color: #1f2937;
+		}
+
+		.login-title {
+			color: white;
+		}
+
+		.admin-title {
+			color: white;
+		}
+
+		.admin-header {
+			border-bottom-color: #374151;
+		}
+
+		.no-submissions {
+			background-color: #374151;
+			color: #d1d5db;
+		}
+
+		.submissions-table {
+			background: #1f2937;
+		}
+
+		.table-header {
+			background-color: #374151;
+		}
+
+		.header-cell {
+			color: #d1d5db;
+		}
+
+		.table-row:hover {
+			background-color: #374151;
+		}
+
+		.cell {
+			color: #d1d5db;
+		}
+
+		.email-link {
+			color: #fbbf24;
+		}
+
 		.modal-content {
 			background: #1f2937;
 		}
@@ -1309,15 +859,6 @@
 
 		.modal-button.secondary:hover {
 			background-color: #4b5563;
-		}
-
-		.modal-button.archive {
-			background-color: #f59e0b;
-			color: white;
-		}
-
-		.modal-button.archive:hover {
-			background-color: #d97706;
 		}
 	}
 </style>
