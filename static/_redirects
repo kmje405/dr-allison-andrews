@@ -1,2 +1,1 @@
-# Redirect all requests to SvelteKit
-/*    /.netlify/functions/render   200
+/* /index.html 200
