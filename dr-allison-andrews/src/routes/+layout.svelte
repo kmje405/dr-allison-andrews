@@ -1,4 +1,6 @@
+<!-- src/routes/+layout.svelte -->
 <script lang="ts">
+	import '../app.css'; // ← this makes styles global
 	import favicon from '$lib/assets/favicon.svg';
 
 	let { children } = $props();
