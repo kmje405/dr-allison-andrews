@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { BarsOutline, CloseOutline } from 'flowbite-svelte-icons';
+	import { dev } from '$app/environment';
 
 	type NavLink = {
 		label: string;
@@ -7,7 +8,9 @@
 	};
 
 	const navLinks: NavLink[] = [
+		{ label: 'Home', href: '/' },
 		{ label: 'About', href: '/about' },
+		{ label: 'Blog', href: '/blog' },
 		{ label: 'Contact', href: '/contact' }
 	];
 
@@ -20,19 +23,25 @@
 			document.body.style.overflow = '';
 		};
 	});
+
+	// Toggle breakpoint ruler
+	function toggleBreakpointRuler() {
+		// Dispatch custom event to toggle ruler
+		window.dispatchEvent(new CustomEvent('toggle-breakpoint-ruler'));
+	}
 </script>
 
 <div class="navigation">
-	<nav class="flex items-center justify-between p-6">
+	<nav class="nav-container">
 		<!-- Logo/Brand -->
-		<div class="text-xl font-bold">
-			<a href="/" class="text-gray-900 dark:text-white">Dr. Allison Andrews</a>
+		<div class="nav-brand">
+			<a href="/" class="brand-link">Dr. Allison Andrews</a>
 		</div>
 
 		<!-- Desktop Navigation -->
-		<ul class="hidden md:flex">
+		<ul class="nav-desktop">
 			{#each navLinks as { label, href }}
-				<li class="m-0">
+				<li class="nav-item">
 					<a {href} class="nav-link">{label}</a>
 				</li>
 			{/each}
@@ -40,13 +49,13 @@
 
 		<!-- Mobile Menu Button -->
 		<button
-			class="md:hidden p-2 inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-900 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white dark:focus:ring-gray-700"
+			class="mobile-menu-button"
 			aria-label="Open menu"
 			aria-controls="mobile-drawer"
 			aria-expanded={mobileMenuOpen}
 			onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
 		>
-			<BarsOutline class="h-10 w-10" />
+			<BarsOutline class="menu-icon" />
 		</button>
 	</nav>
 </div>
@@ -75,22 +84,34 @@
 	onclick={(e) => e.stopPropagation()}
 	onkeydown={(e) => e.key === 'Escape' && (mobileMenuOpen = false)}
 >
-	<div class="flex items-center justify-end mb-6 p-4 pr-6">
-		<button
-			class="p-2 mr-2 inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-900 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white dark:focus:ring-gray-700"
-			aria-label="Close menu"
-			onclick={() => (mobileMenuOpen = false)}
-		>
-			<CloseOutline class="h-5 w-5" />
+	<div class="drawer-header">
+		<button class="close-button" aria-label="Close menu" onclick={() => (mobileMenuOpen = false)}>
+			<CloseOutline class="close-icon" />
 		</button>
 	</div>
 
-	<nav class="space-y-0 p-4">
+	<nav class="drawer-nav">
 		{#each navLinks as { label, href }}
 			<a {href} class="mobile-nav-link" onclick={() => (mobileMenuOpen = false)}>
 				{label}
 			</a>
 		{/each}
+
+		<!-- Development tools (only in dev mode) -->
+		{#if dev}
+			<div class="dev-section">
+				<div class="dev-label">Development Tools</div>
+				<button
+					class="dev-toggle"
+					onclick={() => {
+						toggleBreakpointRuler();
+						mobileMenuOpen = false;
+					}}
+				>
+					⚙️ Toggle Guides
+				</button>
+			</div>
+		{/if}
 	</nav>
 </div>
 
@@ -102,8 +123,54 @@
 		box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 	}
 
-	.navigation ul {
+	.nav-container {
 		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		max-width: 1280px;
+		margin-left: auto;
+		margin-right: auto;
+		padding: 1.5rem 1rem;
+	}
+
+	/* Responsive padding to match PageTemplate */
+	@media (min-width: 640px) {
+		.nav-container {
+			padding: 1.5rem 1.5rem;
+		}
+	}
+
+	@media (min-width: 768px) {
+		.nav-container {
+			padding: 1.5rem 2rem;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.nav-container {
+			padding: 1.5rem 3rem;
+		}
+	}
+
+	@media (min-width: 1280px) {
+		.nav-container {
+			padding: 1.5rem 4rem;
+		}
+	}
+
+	.nav-brand {
+		font-size: 1.25rem;
+		font-weight: bold;
+	}
+
+	.brand-link {
+		color: #111827;
+		text-decoration: none;
+	}
+
+	.nav-desktop {
+		display: none;
 		flex-direction: row;
 		list-style: none;
 		margin: 0;
@@ -111,18 +178,14 @@
 		gap: 1rem;
 	}
 
-	/* Hide desktop nav on mobile */
-	@media (max-width: 767px) {
-		.navigation ul {
-			display: none;
+	@media (min-width: 768px) {
+		.nav-desktop {
+			display: flex;
 		}
 	}
 
-	/* Show desktop nav on medium screens and up */
-	@media (min-width: 768px) {
-		.navigation ul {
-			display: flex;
-		}
+	.nav-item {
+		margin: 0;
 	}
 
 	.nav-link {
@@ -138,6 +201,46 @@
 	.nav-link:hover {
 		background-color: #f3f4f6;
 		color: #1f2937;
+	}
+
+	.mobile-menu-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.5rem;
+		border-radius: 0.5rem;
+		border: 1px solid #d1d5db;
+		background-color: white;
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: #111827;
+		cursor: pointer;
+		margin-right: 0.5rem;
+		margin-top: 0.5rem;
+		margin-bottom: 0.5rem;
+		transition: all 0.2s ease-in-out;
+	}
+
+	.mobile-menu-button:hover {
+		background-color: #f3f4f6;
+		color: #3b82f6;
+	}
+
+	.mobile-menu-button:focus {
+		z-index: 10;
+		outline: none;
+		box-shadow: 0 0 0 4px rgba(156, 163, 175, 0.5);
+	}
+
+	@media (min-width: 768px) {
+		.mobile-menu-button {
+			display: none;
+		}
+	}
+
+	:global(.menu-icon) {
+		height: 2.5rem;
+		width: 2.5rem;
 	}
 
 	.mobile-overlay {
@@ -164,18 +267,57 @@
 		transform: translateX(0);
 	}
 
-	@media (prefers-color-scheme: dark) {
-		.mobile-drawer {
-			background-color: #1f2937;
-		}
+	.drawer-header {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		margin-bottom: 1.5rem;
+		padding: 1rem;
+		padding-right: 0.5rem;
+		padding-top: 0.5rem;
 	}
 
-	/* Mobile nav item spacing */
+	.close-button {
+		padding: 0.5rem;
+		margin-right: 0.5rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 0.5rem;
+		border: 1px solid #d1d5db;
+		background-color: white;
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: #111827;
+		cursor: pointer;
+		transition: all 0.2s ease-in-out;
+	}
+
+	.close-button:hover {
+		background-color: #f3f4f6;
+		color: #3b82f6;
+	}
+
+	.close-button:focus {
+		z-index: 10;
+		outline: none;
+		box-shadow: 0 0 0 4px rgba(156, 163, 175, 0.5);
+	}
+
+	:global(.close-icon) {
+		height: 1.25rem;
+		width: 1.25rem;
+	}
+
+	.drawer-nav {
+		padding: 1rem;
+	}
+
 	.mobile-nav-link {
-		padding-top: 0.75rem !important;
-		padding-bottom: 4rem !important;
-		padding-left: 0.75rem !important;
-		padding-right: 0.75rem !important;
+		padding-top: 0.75rem;
+		padding-bottom: 4rem;
+		padding-left: 0.75rem;
+		padding-right: 0.75rem;
 		display: block;
 		color: #111827;
 		border-radius: 0.375rem;
@@ -187,7 +329,89 @@
 		background-color: #f3f4f6;
 	}
 
+	.dev-section {
+		margin-top: 2rem;
+		padding-top: 1rem;
+		border-top: 1px solid #e5e7eb;
+	}
+
+	.dev-label {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: #6b7280;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		margin-bottom: 0.5rem;
+		padding-left: 0.75rem;
+	}
+
+	.dev-toggle {
+		width: 100%;
+		padding: 0.75rem;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		color: #3b82f6;
+		background: rgba(59, 130, 246, 0.1);
+		border: 1px solid rgba(59, 130, 246, 0.2);
+		border-radius: 0.375rem;
+		font-size: 0.875rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.2s ease-in-out;
+		text-align: left;
+	}
+
+	.dev-toggle:hover {
+		background: rgba(59, 130, 246, 0.15);
+		border-color: rgba(59, 130, 246, 0.3);
+	}
+
+	/* Dark mode styles */
 	@media (prefers-color-scheme: dark) {
+		.navigation {
+			background-color: #1f2937;
+			border-bottom-color: #374151;
+		}
+
+		.brand-link {
+			color: white;
+		}
+
+		.mobile-menu-button {
+			border-color: #4b5563;
+			background-color: #374151;
+			color: #d1d5db;
+		}
+
+		.mobile-menu-button:hover {
+			background-color: #4b5563;
+			color: white;
+		}
+
+		.mobile-menu-button:focus {
+			box-shadow: 0 0 0 4px rgba(75, 85, 99, 0.5);
+		}
+
+		.mobile-drawer {
+			background-color: #1f2937;
+		}
+
+		.close-button {
+			border-color: #4b5563;
+			background-color: #374151;
+			color: #d1d5db;
+		}
+
+		.close-button:hover {
+			background-color: #4b5563;
+			color: white;
+		}
+
+		.close-button:focus {
+			box-shadow: 0 0 0 4px rgba(75, 85, 99, 0.5);
+		}
+
 		.mobile-nav-link {
 			color: white;
 		}
@@ -195,23 +419,24 @@
 		.mobile-nav-link:hover {
 			background-color: #374151;
 		}
-	}
 
-	/* Close button spacing */
-	.mobile-drawer .flex {
-		padding-right: 0.5rem;
-		padding-top: 0.5rem;
-	}
+		.dev-section {
+			border-top-color: #374151;
+		}
 
-	.mobile-drawer button[aria-label='Close menu'] {
-		margin-right: 0.5rem !important;
-		padding: 0.5rem !important;
-	}
+		.dev-label {
+			color: #9ca3af;
+		}
 
-	/* Hamburger menu button spacing */
-	nav button[aria-label='Open menu'] {
-		margin-right: 0.5rem;
-		margin-top: 0.5rem;
-		margin-bottom: 0.5rem;
+		.dev-toggle {
+			color: #60a5fa;
+			background: rgba(96, 165, 250, 0.1);
+			border-color: rgba(96, 165, 250, 0.2);
+		}
+
+		.dev-toggle:hover {
+			background: rgba(96, 165, 250, 0.15);
+			border-color: rgba(96, 165, 250, 0.3);
+		}
 	}
 </style>

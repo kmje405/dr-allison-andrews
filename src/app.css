@@ -10,21 +10,27 @@
 body {
 	line-height: 1.5;
 	-webkit-font-smoothing: antialiased;
+	margin: 0;
+	padding: 0;
+	overflow-x: hidden;
 }
 
-/* ---------- Tailwind (v4 syntax) ---------- */
-@import 'tailwindcss';
+html {
+	margin: 0;
+	padding: 0;
+}
 
-/* Plugins */
-@plugin '@tailwindcss/forms';
-@plugin '@tailwindcss/typography';
-@plugin 'flowbite/plugin';
+/* ---------- CSS Variables ---------- */
+:root {
+	/* Standardized breakpoints */
+	--breakpoint-xs: 475px;
+	--breakpoint-sm: 640px;
+	--breakpoint-md: 768px;
+	--breakpoint-lg: 1024px;
+	--breakpoint-xl: 1280px;
+	--breakpoint-2xl: 1536px;
 
-/* Dark variant helper (opt-in via .dark on html/body) */
-@custom-variant dark (&:where(.dark, .dark *));
-
-/* Theme tokens */
-@theme {
+	/* Color palette */
 	--color-primary-50: #fff5f2;
 	--color-primary-100: #fff1ee;
 	--color-primary-200: #ffe4de;
@@ -46,16 +52,65 @@ body {
 	--color-secondary-700: #0369a1;
 	--color-secondary-800: #075985;
 	--color-secondary-900: #0c4a6e;
-}
 
-/* Make Tailwind scan Flowbite Svelte packages */
-@source "../node_modules/flowbite-svelte/dist";
-@source "../node_modules/flowbite-svelte-icons/dist";
+	/* Container max-widths for each breakpoint */
+	--container-xs: 100%;
+	--container-sm: 640px;
+	--container-md: 768px;
+	--container-lg: 1024px;
+	--container-xl: 1280px;
+	--container-2xl: 1536px;
+}
 
 /* Base tweaks */
 @layer base {
-	/* Disable Chrome’s search input “x” */
+	/* Disable Chrome's search input "x" */
 	input[type='search']::-webkit-search-cancel-button {
 		display: none;
+	}
+}
+
+/* Responsive container utilities */
+.container-responsive {
+	width: 100%;
+	max-width: 1536px;
+	margin-left: auto;
+	margin-right: auto;
+	padding-left: 1rem;
+	padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+	.container-responsive {
+		padding-left: 1.5rem;
+		padding-right: 1.5rem;
+	}
+}
+
+@media (min-width: 768px) {
+	.container-responsive {
+		padding-left: 2rem;
+		padding-right: 2rem;
+	}
+}
+
+@media (min-width: 1024px) {
+	.container-responsive {
+		padding-left: 3rem;
+		padding-right: 3rem;
+	}
+}
+
+@media (min-width: 1280px) {
+	.container-responsive {
+		padding-left: 4rem;
+		padding-right: 4rem;
+	}
+}
+
+@media (min-width: 1536px) {
+	.container-responsive {
+		padding-left: 5rem;
+		padding-right: 5rem;
 	}
 }
