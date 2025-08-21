@@ -1,3 +1,3 @@
 <script></script>
 
-<div class="">Hi from the about page</div>
+<h1 class="">About</h1>
