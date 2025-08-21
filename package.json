@@ -45,8 +45,9 @@
 	},
 	"dependencies": {
 		"@neondatabase/serverless": "^0.10.1",
-		"drizzle-orm": "^0.36.4",
+		"d3": "^7.9.0",
 		"drizzle-kit": "^0.30.0",
+		"drizzle-orm": "^0.36.4",
 		"netlify-identity-widget": "^1.9.2"
 	}
 }
