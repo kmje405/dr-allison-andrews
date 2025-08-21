@@ -166,6 +166,9 @@
 			class:dragging={isDragging}
 			style="left: {legendPosition.x}px; top: {legendPosition.y}px;"
 			onmousedown={handleMouseDown}
+			role="dialog"
+			aria-label="Breakpoint ruler legend panel"
+			tabindex="-1"
 		>
 			<div class="legend-header">
 				<div class="drag-handle">
