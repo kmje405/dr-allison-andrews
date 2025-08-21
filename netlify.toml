@@ -5,12 +5,6 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# Redirect all requests to SvelteKit
-[[redirects]]
-  from = "/*"
-  to = "/.netlify/functions/render"
-  status = 200
-
 # Headers for security and performance
 [[headers]]
   for = "/*"
