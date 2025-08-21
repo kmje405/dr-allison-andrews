@@ -268,8 +268,23 @@ onMount(() => {
 
 ### Netlify Identity Documentation
 
-- [Official Docs](https://docs.netlify.com/visitor-access/identity/)
-- [Widget Documentation](https://github.com/netlify/netlify-identity-widget)
+## Current Authentication System
+
+This project uses a custom JWT-based authentication system with database-stored users instead of Netlify Identity.
+
+**Key Components:**
+
+- Database-based user management with roles
+- JWT token authentication
+- Admin setup and login endpoints
+- Client-side authentication utilities
+
+**Files:**
+
+- `src/lib/utils/client-auth.ts` - Client-side authentication utilities
+- `src/lib/utils/db-auth.ts` - Database authentication functions
+- `src/lib/utils/auth-middleware.ts` - Server-side authentication middleware
+- `src/routes/api/auth/` - Authentication API endpoints
 
 ### Common Resources
 
