@@ -1,19 +1,11 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { error } from '@sveltejs/kit';
 	import PageTemplate from '$lib/components/PageTemplate.svelte';
-	import { getPostBySlug } from '$lib/utils/blog.js';
+	import type { PageData } from './$types';
 
-	// Get the current slug from the URL
-	const slug = $page.params.slug;
+	export let data: PageData;
 
-	// Find the blog post from JSON data
-	const post = slug ? getPostBySlug(slug) : null;
-
-	// If post doesn't exist, throw 404 error
-	if (!post) {
-		error(404, 'Blog post not found');
-	}
+	// Get the blog post from server-loaded data
+	const post = data.post;
 
 	// SEO data for the specific post
 	const seo = {

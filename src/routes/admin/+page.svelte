@@ -2,20 +2,114 @@
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import PageTemplate from '$lib/components/PageTemplate.svelte';
-	import { user, isAuthenticated, isAdmin, auth } from '$lib/utils/auth.js';
+	import { currentUser, isAuthenticated, isAdmin, clientAuth } from '$lib/utils/client-auth';
+	import type { PageData } from './$types';
+
+	const { data }: { data: PageData } = $props();
 
 	let showLoginPrompt = $state(false);
+	let showAdminSetup = $state(false);
+	let loginForm = $state({ email: '', password: '' });
+	let adminSetupForm = $state({ email: '', password: '', name: '' });
+	let loginError = $state('');
+	let setupError = $state('');
+	let isLoading = $state(false);
 
-	onMount(() => {
-		// Check if user is authenticated and admin
-		const currentUser = auth.getCurrentUser();
-		if (!currentUser) {
-			showLoginPrompt = true;
-		} else if (!$isAdmin) {
-			// Redirect non-admin users
-			window.location.href = '/';
+	onMount(async () => {
+		// Initialize auth state
+		clientAuth.init();
+
+		// Check if we need to show admin setup
+		try {
+			const response = await fetch('/api/auth/setup-admin', { method: 'GET' });
+			if (response.status === 404) {
+				// No admin exists, show setup form
+				showAdminSetup = true;
+			} else if (!$isAuthenticated) {
+				showLoginPrompt = true;
+			} else if (!$isAdmin) {
+				// Redirect non-admin users
+				window.location.href = '/';
+			}
+		} catch (error) {
+			console.error('Error checking admin setup:', error);
+			if (!$isAuthenticated) {
+				showLoginPrompt = true;
+			}
 		}
 	});
+
+	async function handleLogin() {
+		if (!loginForm.email || !loginForm.password) {
+			loginError = 'Please fill in all fields';
+			return;
+		}
+
+		isLoading = true;
+		loginError = '';
+
+		try {
+			const result = await clientAuth.login(loginForm);
+			if (result.success) {
+				showLoginPrompt = false;
+				// Page will re-render with authenticated state
+			} else {
+				loginError = result.message;
+			}
+		} catch (error) {
+			loginError = 'Login failed. Please try again.';
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	async function handleAdminSetup() {
+		if (!adminSetupForm.email || !adminSetupForm.password || !adminSetupForm.name) {
+			setupError = 'Please fill in all fields';
+			return;
+		}
+
+		isLoading = true;
+		setupError = '';
+
+		try {
+			const response = await fetch('/api/auth/setup-admin', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(adminSetupForm)
+			});
+
+			const result = await response.json();
+
+			if (result.success) {
+				// Now log in the admin user
+				const loginResult = await clientAuth.login({
+					email: adminSetupForm.email,
+					password: adminSetupForm.password
+				});
+
+				if (loginResult.success) {
+					showAdminSetup = false;
+					// Page will re-render with authenticated state
+				} else {
+					setupError = 'Admin created but login failed. Please try logging in.';
+					showAdminSetup = false;
+					showLoginPrompt = true;
+				}
+			} else {
+				setupError = result.message;
+			}
+		} catch (error) {
+			setupError = 'Setup failed. Please try again.';
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	async function handleLogout() {
+		await clientAuth.logout();
+		showLoginPrompt = true;
+	}
 
 	const seo = {
 		title: 'Admin Dashboard',
@@ -24,67 +118,222 @@
 		ogType: 'website' as const
 	};
 
-	// Sample blog posts for management (this would come from your data source)
-	let blogPosts = [
-		{
-			id: 1,
-			title: 'Welcome to My Professional Blog',
-			slug: 'welcome-to-my-blog',
-			published: true,
-			featured: true,
-			date: '2024-01-15'
-		},
-		{
-			id: 2,
-			title: 'Latest Research Developments',
-			slug: 'latest-research-developments',
-			published: true,
-			featured: false,
-			date: '2024-01-10'
-		},
-		{
-			id: 3,
-			title: 'Professional Best Practices',
-			slug: 'professional-best-practices',
-			published: true,
-			featured: false,
-			date: '2024-01-05'
-		}
-	];
+	// Get blog posts from server-loaded data
+	let blogPosts = $state(data.posts);
 
-	function togglePublished(postId: number) {
-		const post = blogPosts.find((p) => p.id === postId);
-		if (post) {
-			post.published = !post.published;
-			// Here you would save to your data source
-			console.log(`Post ${postId} published status: ${post.published}`);
+	async function togglePublished(postId: number) {
+		try {
+			const token = clientAuth.getToken();
+			const response = await fetch(`/api/admin/posts/${postId}/toggle-published`, {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${token}`,
+					'Content-Type': 'application/json'
+				}
+			});
+
+			if (response.ok) {
+				// Update the local state
+				const post = blogPosts.find((p) => p.id === postId);
+				if (post) {
+					post.published = !post.published;
+				}
+			} else if (response.status === 401) {
+				// Token expired or invalid, redirect to login
+				await clientAuth.logout();
+				showLoginPrompt = true;
+			} else {
+				console.error('Failed to toggle published status');
+			}
+		} catch (error) {
+			console.error('Error toggling published status:', error);
 		}
 	}
 
-	function toggleFeatured(postId: number) {
-		const post = blogPosts.find((p) => p.id === postId);
-		if (post) {
-			post.featured = !post.featured;
-			// Here you would save to your data source
-			console.log(`Post ${postId} featured status: ${post.featured}`);
+	async function toggleFeatured(postId: number) {
+		try {
+			const token = clientAuth.getToken();
+			const response = await fetch(`/api/admin/posts/${postId}/toggle-featured`, {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${token}`,
+					'Content-Type': 'application/json'
+				}
+			});
+
+			if (response.ok) {
+				// Update the local state
+				const post = blogPosts.find((p) => p.id === postId);
+				if (post) {
+					post.featured = !post.featured;
+				}
+			} else if (response.status === 401) {
+				// Token expired or invalid, redirect to login
+				await clientAuth.logout();
+				showLoginPrompt = true;
+			} else {
+				console.error('Failed to toggle featured status');
+			}
+		} catch (error) {
+			console.error('Error toggling featured status:', error);
 		}
+	}
+
+	async function deletePost(postId: number, postTitle: string) {
+		// Double confirmation
+		const firstConfirm = confirm(`Are you sure you want to delete "${postTitle}"?`);
+		if (!firstConfirm) return;
+
+		const secondConfirm = confirm(
+			`This action cannot be undone. Are you absolutely sure you want to permanently delete "${postTitle}"?`
+		);
+		if (!secondConfirm) return;
+
+		try {
+			const token = clientAuth.getToken();
+			const response = await fetch(`/api/admin/posts/${postId}/delete`, {
+				method: 'DELETE',
+				headers: {
+					Authorization: `Bearer ${token}`,
+					'Content-Type': 'application/json'
+				}
+			});
+
+			if (response.ok) {
+				// Remove the post from local state
+				blogPosts = blogPosts.filter((p) => p.id !== postId);
+			} else if (response.status === 401) {
+				// Token expired or invalid, redirect to login
+				await clientAuth.logout();
+				showLoginPrompt = true;
+			} else {
+				const result = await response.json();
+				alert(`Failed to delete post: ${result.message}`);
+			}
+		} catch (error) {
+			console.error('Error deleting post:', error);
+			alert('Failed to delete post. Please try again.');
+		}
+	}
+
+	function editPost(postId: number) {
+		window.location.href = `/admin/posts/${postId}`;
 	}
 </script>
 
-{#if showLoginPrompt}
+{#if showAdminSetup}
 	<PageTemplate {seo}>
 		{#snippet children()}
 			<div class="login-prompt">
 				<div class="login-card">
-					<h1 class="login-title">Admin Access Required</h1>
+					<h1 class="login-title">Admin Setup Required</h1>
+					<p class="login-description">Create the first admin user to access the dashboard.</p>
+
+					<form
+						class="login-form"
+						onsubmit={(e) => {
+							e.preventDefault();
+							handleAdminSetup();
+						}}
+					>
+						<div class="form-group">
+							<label for="setup-name">Full Name</label>
+							<input
+								id="setup-name"
+								type="text"
+								bind:value={adminSetupForm.name}
+								placeholder="Enter your full name"
+								required
+							/>
+						</div>
+
+						<div class="form-group">
+							<label for="setup-email">Email</label>
+							<input
+								id="setup-email"
+								type="email"
+								bind:value={adminSetupForm.email}
+								placeholder="Enter your email"
+								required
+							/>
+						</div>
+
+						<div class="form-group">
+							<label for="setup-password">Password</label>
+							<input
+								id="setup-password"
+								type="password"
+								bind:value={adminSetupForm.password}
+								placeholder="Enter a secure password"
+								required
+							/>
+						</div>
+
+						{#if setupError}
+							<div class="error-message">{setupError}</div>
+						{/if}
+
+						<div class="login-buttons">
+							<button type="submit" class="login-button" disabled={isLoading}>
+								{isLoading ? 'Creating...' : 'Create Admin User'}
+							</button>
+							<a href="/" class="back-link">← Back to Site</a>
+						</div>
+					</form>
+				</div>
+			</div>
+		{/snippet}
+	</PageTemplate>
+{:else if showLoginPrompt}
+	<PageTemplate {seo}>
+		{#snippet children()}
+			<div class="login-prompt">
+				<div class="login-card">
+					<h1 class="login-title">Admin Login</h1>
 					<p class="login-description">
 						Please log in with your admin credentials to access the dashboard.
 					</p>
 
-					<div class="login-buttons">
-						<button class="login-button" onclick={() => auth.login()}> Log In </button>
-						<a href="/" class="back-link">← Back to Site</a>
-					</div>
+					<form
+						class="login-form"
+						onsubmit={(e) => {
+							e.preventDefault();
+							handleLogin();
+						}}
+					>
+						<div class="form-group">
+							<label for="email">Email</label>
+							<input
+								id="email"
+								type="email"
+								bind:value={loginForm.email}
+								placeholder="Enter your email"
+								required
+							/>
+						</div>
+
+						<div class="form-group">
+							<label for="password">Password</label>
+							<input
+								id="password"
+								type="password"
+								bind:value={loginForm.password}
+								placeholder="Enter your password"
+								required
+							/>
+						</div>
+
+						{#if loginError}
+							<div class="error-message">{loginError}</div>
+						{/if}
+
+						<div class="login-buttons">
+							<button type="submit" class="login-button" disabled={isLoading}>
+								{isLoading ? 'Logging in...' : 'Log In'}
+							</button>
+							<a href="/" class="back-link">← Back to Site</a>
+						</div>
+					</form>
 				</div>
 			</div>
 		{/snippet}
@@ -96,12 +345,12 @@
 				<div class="admin-title-section">
 					<h1 class="admin-title">Admin Dashboard</h1>
 					<p class="admin-subtitle">
-						Welcome back, {$user?.user_metadata?.full_name || $user?.email}
+						Welcome back, {$currentUser?.name || $currentUser?.email}
 					</p>
 				</div>
 
 				<div class="admin-actions">
-					<button class="logout-button" onclick={() => auth.logout()}> Log Out </button>
+					<button class="logout-button" onclick={handleLogout}> Log Out </button>
 				</div>
 			</div>
 
@@ -140,15 +389,33 @@
 										class="toggle-button"
 										class:active={post.featured}
 										onclick={() => toggleFeatured(post.id)}
+										title={post.featured ? 'Remove from featured' : 'Add to featured'}
 									>
 										{post.featured ? '★' : '☆'}
 									</button>
 								</div>
 								<div class="cell actions">
-									<button class="action-button" onclick={() => togglePublished(post.id)}>
+									<button
+										class="action-button publish"
+										onclick={() => togglePublished(post.id)}
+										title={post.published ? 'Unpublish post' : 'Publish post'}
+									>
 										{post.published ? 'Unpublish' : 'Publish'}
 									</button>
-									<button class="action-button edit">Edit</button>
+									<button
+										class="action-button edit"
+										onclick={() => editPost(post.id)}
+										title="Edit post"
+									>
+										Edit
+									</button>
+									<button
+										class="action-button delete"
+										onclick={() => deletePost(post.id, post.title)}
+										title="Delete post"
+									>
+										Delete
+									</button>
 								</div>
 							</div>
 						{/each}
@@ -162,7 +429,10 @@
 						<div class="action-card">
 							<h3 class="card-title">New Blog Post</h3>
 							<p class="card-description">Create a new blog post</p>
-							<button class="card-button">Create Post</button>
+							<button
+								class="card-button"
+								onclick={() => (window.location.href = '/admin/posts/new')}>Create Post</button
+							>
 						</div>
 
 						<div class="action-card">
@@ -225,6 +495,48 @@
 		line-height: 1.6;
 	}
 
+	.login-form {
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+		text-align: left;
+	}
+
+	.form-group {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.form-group label {
+		font-weight: 500;
+		color: #374151;
+		font-size: 0.875rem;
+	}
+
+	.form-group input {
+		padding: 0.75rem;
+		border: 1px solid #d1d5db;
+		border-radius: 0.375rem;
+		font-size: 1rem;
+		transition: border-color 0.2s ease;
+	}
+
+	.form-group input:focus {
+		outline: none;
+		border-color: #fe795d;
+		box-shadow: 0 0 0 3px rgba(254, 121, 93, 0.1);
+	}
+
+	.error-message {
+		background-color: #fef2f2;
+		color: #dc2626;
+		padding: 0.75rem;
+		border-radius: 0.375rem;
+		font-size: 0.875rem;
+		text-align: center;
+	}
+
 	.login-buttons {
 		display: flex;
 		flex-direction: column;
@@ -242,10 +554,16 @@
 		cursor: pointer;
 		transition: background-color 0.2s ease;
 		font-size: 1rem;
+		width: 100%;
 	}
 
-	.login-button:hover {
+	.login-button:hover:not(:disabled) {
 		background-color: #ef562f;
+	}
+
+	.login-button:disabled {
+		background-color: #9ca3af;
+		cursor: not-allowed;
 	}
 
 	.back-link {
@@ -405,6 +723,15 @@
 		background-color: #e5e7eb;
 	}
 
+	.action-button.publish {
+		background-color: #d1fae5;
+		color: #065f46;
+	}
+
+	.action-button.publish:hover {
+		background-color: #a7f3d0;
+	}
+
 	.action-button.edit {
 		background-color: #dbeafe;
 		color: #1e40af;
@@ -412,6 +739,15 @@
 
 	.action-button.edit:hover {
 		background-color: #bfdbfe;
+	}
+
+	.action-button.delete {
+		background-color: #fee2e2;
+		color: #dc2626;
+	}
+
+	.action-button.delete:hover {
+		background-color: #fecaca;
 	}
 
 	/* Quick Actions */

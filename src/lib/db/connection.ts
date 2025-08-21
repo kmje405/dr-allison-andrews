@@ -1,7 +1,11 @@
 import { drizzle } from 'drizzle-orm/neon-serverless';
-import { Pool } from '@neondatabase/serverless';
+import { Pool, neonConfig } from '@neondatabase/serverless';
 import { env } from '$env/dynamic/private';
+import WebSocket from 'ws';
 import * as schema from './schema.js';
+
+// Configure WebSocket for Node.js environment
+neonConfig.webSocketConstructor = WebSocket;
 
 // Create connection pool
 const pool = new Pool({ connectionString: env.DATABASE_URL });

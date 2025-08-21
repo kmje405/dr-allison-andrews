@@ -39,8 +39,10 @@ export const isAdmin = writable<boolean>(false);
 export function initAuth() {
 	if (!browser || !window.netlifyIdentity) return;
 
-	// Initialize Netlify Identity
-	window.netlifyIdentity.init();
+	// Initialize Netlify Identity with site URL for local development
+	window.netlifyIdentity.init({
+		APIUrl: 'https://dr-allison-andrews.netlify.app/.netlify/identity'
+	});
 
 	// Set initial user state
 	const currentUser = window.netlifyIdentity.currentUser();

@@ -52,6 +52,38 @@ export const newsletterSubscriptions = pgTable('newsletter_subscriptions', {
 	updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
 
+// Users table for authentication
+export const users = pgTable('users', {
+	id: serial('id').primaryKey(),
+	email: text('email').notNull().unique(),
+	passwordHash: text('password_hash').notNull(),
+	name: text('name').notNull(),
+	role: text('role').notNull().default('user'), // 'admin', 'editor', 'user'
+	isActive: boolean('is_active').notNull().default(true),
+	emailVerified: boolean('email_verified').notNull().default(false),
+	createdAt: timestamp('created_at').notNull().defaultNow(),
+	updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+// User sessions table for JWT token management
+export const userSessions = pgTable('user_sessions', {
+	id: serial('id').primaryKey(),
+	userId: integer('user_id')
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	token: text('token').notNull().unique(),
+	expiresAt: timestamp('expires_at').notNull(),
+	createdAt: timestamp('created_at').notNull().defaultNow()
+});
+
+// Site settings table for registration control
+export const siteSettings = pgTable('site_settings', {
+	id: serial('id').primaryKey(),
+	key: text('key').notNull().unique(),
+	value: text('value').notNull(),
+	updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
 // Types for TypeScript
 export type BlogPost = typeof blogPosts.$inferSelect;
 export type NewBlogPost = typeof blogPosts.$inferInsert;
@@ -61,3 +93,9 @@ export type ContactSubmission = typeof contactSubmissions.$inferSelect;
 export type NewContactSubmission = typeof contactSubmissions.$inferInsert;
 export type NewsletterSubscription = typeof newsletterSubscriptions.$inferSelect;
 export type NewNewsletterSubscription = typeof newsletterSubscriptions.$inferInsert;
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+export type UserSession = typeof userSessions.$inferSelect;
+export type NewUserSession = typeof userSessions.$inferInsert;
+export type SiteSetting = typeof siteSettings.$inferSelect;
+export type NewSiteSetting = typeof siteSettings.$inferInsert;

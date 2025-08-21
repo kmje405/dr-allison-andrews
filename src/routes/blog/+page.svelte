@@ -1,6 +1,8 @@
 <script lang="ts">
 	import PageTemplate from '$lib/components/PageTemplate.svelte';
-	import { getAllPosts, type BlogPost } from '$lib/utils/blog.js';
+	import type { PageData } from './$types';
+
+	export let data: PageData;
 
 	const seo = {
 		title: 'Blog',
@@ -10,8 +12,8 @@
 		ogType: 'website' as const
 	};
 
-	// Get all published blog posts from JSON
-	const blogPosts: BlogPost[] = getAllPosts();
+	// Get all published blog posts from database
+	const blogPosts = data.posts;
 </script>
 
 <PageTemplate {seo}>
